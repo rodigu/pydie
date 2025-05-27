@@ -12,3 +12,7 @@ def get_format(date_string: str) -> str:
     '%Y-%d'
     """
     return date_string.strip().split("[")[-1][:-1]
+
+
+class Converter:
+    pass
