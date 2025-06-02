@@ -4,6 +4,7 @@ version = "0.0.0"
 dependencies = [
   "pyodbc",
   "pandas",
+  "pyyaml",
 ]
 authors = [
   { name="Rodrigo Morais", email="rodrigohmorais@proton.me" },
