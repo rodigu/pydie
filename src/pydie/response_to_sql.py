@@ -25,7 +25,12 @@ def get_sql(schema: dict, path: str, property_name: str, property_value: str):
     pattern: str = property_schema.get("pattern")
     max_length: int = property_schema.get("maxLength")
 
-    if max_length is not None:
+    if property_value is None:
+        property_value = "NULL"
+
+    if type == "array" and property_schema["items"]["type"] in {"number", "string"}:
+        return SQLItem(str(property_value), "VARCHAR(MAX)")
+    if type == "string" and max_length is not None:
         return SQLItem(property_value, f"VARCHAR({max_length})")
     if pattern is not None and "date" in format:
         return SQLItem(datetime.strptime(property_value, pattern), "DATETIME")
