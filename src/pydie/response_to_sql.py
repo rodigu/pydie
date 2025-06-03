@@ -10,6 +10,67 @@ class SQLItem:
     type: str
 
 
+def parse_value_to_sql(
+    value: str,
+    openapi_type: str,
+    format: str,
+    pattern: str,
+    items: dict = None,
+):
+    if value is None:
+        return "NULL"
+
+    is_primitive_array = openapi_type == "array" and (
+        items["type"] in {"number", "string"}
+    )
+    is_str = openapi_type == "string"
+    if is_primitive_array or is_str:
+        return f"N'{str(value)}'"
+    has_date_format = pattern is not None and "date" in format
+    if has_date_format:
+        return datetime.strptime(value, pattern)
+    is_datetime = openapi_type == "date-time"
+    if is_datetime:
+        return parser.parse(value)
+    if openapi_type == "boolean" or (openapi_type == "number" and "int" in format):
+        return int(value)
+    if openapi_type == "number":
+        return float(value)
+
+    return None
+
+
+def parse_type_to_sql(
+    openapi_type: str, items: dict = None, max_length: int = None, format: str = None
+) -> str:
+    if openapi_type == "string" and max_length is not None:
+        return f"VARCHAR({max_length})"
+    if "date" in format:
+        return "DATETIME"
+    if (
+        openapi_type == "array"
+        and items["type"]
+        in {
+            "number",
+            "string",
+        }
+        or openapi_type == "string"
+    ):
+        return "VARCHAR(MAX)"
+    if openapi_type == "boolean":
+        return "BIT"
+    if openapi_type == "number" and format == "int32":
+        return "INT"
+    if openapi_type == "number" and format == "int64":
+        return "BIGINT"
+    if openapi_type == "number" and format is None:
+        return "FLOAT"
+    if openapi_type == "number":
+        return format
+
+    return None
+
+
 def get_sql(schema: dict, property_name: str, property_value: str) -> SQLItem:
     """Converts `property_value` into valid SQL, with a SQL type equivalent to the property type (taken from the schema).
 
@@ -100,47 +161,31 @@ def get_sql(schema: dict, property_name: str, property_value: str) -> SQLItem:
         raise Exception(f"{property_name} not in provided schema")
     property_schema = schema[property_name]
 
-    type: str = property_schema.get("type")
+    openapi_type: str = property_schema.get("type")
 
     format: str = property_schema.get("format")
     pattern: str = property_schema.get("pattern")
     max_length: int = property_schema.get("maxLength")
+    items = None if openapi_type != "array" else property_schema["items"]["type"]
 
-    if property_value is None:
-        property_value = "NULL"
-
-    if type == "array" and property_schema["items"]["type"] in {"number", "string"}:
-        return SQLItem(str(property_value), "VARCHAR(MAX)")
-    if type == "string" and max_length is not None:
-        if property_value == "NULL":
-            return SQLItem(property_value, f"VARCHAR({max_length})")
-        return SQLItem(f"N'{property_value}'", f"VARCHAR({max_length})")
-    if pattern is not None and "date" in format:
-        if property_value == "NULL":
-            return SQLItem(property_value, "DATETIME")
-        return SQLItem(datetime.strptime(property_value, pattern), "DATETIME")
-    if format == "date-time":
-        if property_value == "NULL":
-            return SQLItem(property_value, "DATETIME")
-        return SQLItem(parser.parse(property_value), "DATETIME")
-    if type == "string":
-        if property_value == "NULL":
-            return SQLItem(property_value, "VARCHAR(MAX)")
-        return SQLItem(f"N'{property_value}'", "VARCHAR(MAX)")
-    if type == "boolean":
-        return SQLItem(int(property_value), "BIT")
-    if type == "number" and format == "int32":
-        return SQLItem(int(property_value), "INT")
-    if type == "number" and format == "int64":
-        return SQLItem(int(property_value), "BIGINT")
-    if type == "number" and format is None:
-        return SQLItem(float(property_value), "FLOAT")
-    if type == "number":
-        return SQLItem(property_value, format)
-
-    raise Exception(
-        f"SQL parsing cannot handle type [{type}] with format [{format}]: {dict(property_name=property_name, property_value=property_value)}"
+    sql_value = parse_value_to_sql(
+        value=property_value,
+        openapi_type=openapi_type,
+        format=format,
+        pattern=pattern,
+        items=items,
     )
+
+    sql_type = parse_type_to_sql(
+        openapi_type=openapi_type, items=items, max_length=max_length, format=format
+    )
+
+    if (sql_type is None) or (sql_value is None):
+        raise Exception(
+            f"SQL parsing cannot handle type [{openapi_type}] with format [{format}]: {dict(property_name=property_name, property_value=property_value)}"
+        )
+
+    return SQLItem(sql_value, sql_type)
 
 
 def parse_response_into_sql(schema: dict, response: dict) -> dict[str, SQLItem]:
