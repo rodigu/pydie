@@ -10,14 +10,95 @@ class SQLItem:
     type: str
 
 
-def get_path_response(schema: dict, path: str) -> dict:
-    return schema["paths"][path]["get"]["responses"]["200"]["content"][
-        "application/json"
-    ]["schema"]["properties"]
+def get_sql(schema: dict, property_name: str, property_value: str) -> SQLItem:
+    """Converts `property_value` into valid SQL, with a SQL type equivalent to the property type (taken from the schema).
 
+        :param dict schema: valid OpenAPI 3.0 schema for /paths/`[PATH]`/get/responses/200/content/"application/json"/schema/properties/`[PROPRERTY]`
+        where `[PATH]` is a valid API path and `[PROPERTY]` is the name of the property name that references `property_value`
+        :param str path: OpenAPI API path in `schema` where `property_name` may be found
+        :param str property_value: value of the API response property
+        :raises Exception: on unhandled API types (`object`, `array`, `null`, `files`)
+        :return SQLItem:
 
-def get_sql(schema: dict, path: str, property_name: str, property_value: str):
-    property_schema = get_path_response(schema, path)[property_name]
+    ## Tests
+    >>> schema = {
+    ...         "data_hora_inc": {
+    ...             "type": "string",
+    ...             "format": "date-time",
+    ...             "description": "Data e hora do registro da venda UTC",
+    ...         },
+    ...         "total_liquido": {
+    ...             "type": "number",
+    ...             "description": "Valor total da venda",
+    ...             "format": "money",
+    ...         },
+    ...         "codigo_promocional": {
+    ...             "type": "string",
+    ...             "description": "Código promocional que foi aplicado para a venda",
+    ...             "maxLength": 30,
+    ...         },
+    ...         "nascimento_titular": {
+    ...             "type": "string",
+    ...             "description": "Data de nascimento do titular da venda formatada",
+    ...             "format": "date",
+    ...             "pattern": "%d/%m/%Y",
+    ...         },
+    ...         "cod_local_venda": {
+    ...             "type": "number",
+    ...             "description": "Código do estabelecimento que realizou a venda",
+    ...             "format": "int32",
+    ...         },
+    ...         "unhandled_property": {
+    ...             "type": "object"
+    ...         },
+    ...         "another_unhandled_property": {
+    ...             "type": "array",
+    ...             "items": {
+    ...                 "type": "object",
+    ...                 "items": {
+    ...                     "sample": {
+    ...                         "type": "string"
+    ...                     }
+    ...                 }
+    ...             }
+    ...         },
+    ...         "array_property": {
+    ...             "type": "array",
+    ...             "items": {
+    ...                 "type": "string"
+    ...             }
+    ...         }
+    ...     }
+    >>> get_sql(schema, "data_hora_inc", '2024-01-03T18:07:32.344Z')
+    SQLItem(value=datetime.datetime(2024, 1, 3, 18, 7, 32, 344000, tzinfo=tzutc()), type='DATETIME')
+    >>> get_sql(schema, "total_liquido", 0.1)
+    SQLItem(value=0.1, type='money')
+    >>> get_sql(schema, "nascimento_titular", "10/11/2003")
+    SQLItem(value=datetime.datetime(2003, 11, 10, 0, 0), type='DATETIME')
+    >>> get_sql(schema, "codigo_promocional", None)
+    SQLItem(value='NULL', type='VARCHAR(30)')
+    >>> get_sql(schema, "cod_local_venda", 624)
+    SQLItem(value=624, type='INT')
+    >>> get_sql(schema, "array_property", ['a','b'])
+    SQLItem(value="['a', 'b']", type='VARCHAR(MAX)')
+
+    ### Failing
+    >>> get_sql(schema, "inexistent_property", 0)
+    Traceback (most recent call last):
+    ...
+    Exception: inexistent_property not in provided schema
+    >>> get_sql(schema, "unhandled_property", 0)
+    Traceback (most recent call last):
+    ...
+    Exception: SQL parsing cannot handle type [object] with format [None]: {'property_name': 'unhandled_property', 'property_value': 0}
+    >>> get_sql(schema, "another_unhandled_property", 0)
+    Traceback (most recent call last):
+    ...
+    Exception: SQL parsing cannot handle type [array] with format [None]: {'property_name': 'another_unhandled_property', 'property_value': 0}
+    """
+    if property_name not in schema:
+        raise Exception(f"{property_name} not in provided schema")
+    property_schema = schema[property_name]
 
     type: str = property_schema.get("type")
 
