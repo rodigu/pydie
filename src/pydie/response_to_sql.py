@@ -112,12 +112,20 @@ def get_sql(schema: dict, property_name: str, property_value: str) -> SQLItem:
     if type == "array" and property_schema["items"]["type"] in {"number", "string"}:
         return SQLItem(str(property_value), "VARCHAR(MAX)")
     if type == "string" and max_length is not None:
-        return SQLItem(property_value, f"VARCHAR({max_length})")
+        if property_value == "NULL":
+            return SQLItem(property_value, f"VARCHAR({max_length})")
+        return SQLItem(f"N'{property_value}'", f"VARCHAR({max_length})")
     if pattern is not None and "date" in format:
+        if property_value == "NULL":
+            return SQLItem(property_value, "DATETIME")
         return SQLItem(datetime.strptime(property_value, pattern), "DATETIME")
     if format == "date-time":
+        if property_value == "NULL":
+            return SQLItem(property_value, "DATETIME")
         return SQLItem(parser.parse(property_value), "DATETIME")
     if type == "string":
+        if property_value == "NULL":
+            return SQLItem(property_value, "VARCHAR(MAX)")
         return SQLItem(f"N'{property_value}'", "VARCHAR(MAX)")
     if type == "boolean":
         return SQLItem(int(property_value), "BIT")
