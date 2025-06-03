@@ -40,7 +40,18 @@ def get_sql(schema: dict, path: str, property_name: str, property_value: str):
         return SQLItem(f"N'{property_value}'", "VARCHAR(MAX)")
     if type == "boolean":
         return SQLItem(int(property_value), "BIT")
-    raise Exception(f"SQL parsing cannot handle {type}: {path} > {property_value}")
+    if type == "number" and format == "int32":
+        return SQLItem(int(property_value), "INT")
+    if type == "number" and format == "int64":
+        return SQLItem(int(property_value), "BIGINT")
+    if type == "number" and format is None:
+        return SQLItem(float(property_value), "FLOAT")
+    if type == "number":
+        return SQLItem(property_value, format)
+
+    raise Exception(
+        f"SQL parsing cannot handle type [{type}] with format [{format}]: {dict(property_name=property_name, property_value=property_value)}"
+    )
 
 
 def parse_response_into_sql(
