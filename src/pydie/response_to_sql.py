@@ -136,9 +136,16 @@ def get_sql(schema: dict, property_name: str, property_value: str) -> SQLItem:
 
 
 def parse_response_into_sql(
-    schema: dict, path: str, property_name: str, response: dict
-):
+    schema: dict, property_name: str, response: dict
+) -> dict[str, SQLItem]:
+    """Parses API response into `SQLItem` instances
+
+    :param dict schema: API response schema for given property
+    :param str property_name: name of the property to be parsed (must be in `schema`)
+    :param dict response: API response dictionary
+    :return dict[str, SQLItem]:
+
+    """
     return {
-        prop: get_sql(schema, path, property_name, value)
-        for prop, value in response.items()
+        prop: get_sql(schema, property_name, value) for prop, value in response.items()
     }
