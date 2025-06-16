@@ -15,7 +15,15 @@ class LastIntegrationMeta(TypedDict):
 
 
 class DataRetrievalFunction:
-    def __call__(self, last_integration: LastIntegrationMeta) -> pd.DataFrame:
+    def __call__(
+        self, connection_meta: dict, last_integration: LastIntegrationMeta
+    ) -> pd.DataFrame:
+        """Base function class for data fetchers
+
+        :param dict connection_meta: metadata needed to complete connection, i.e. authentication data
+        :param LastIntegrationMeta last_integration: last integration metadata
+        :return pd.DataFrame: dataframe with resulting data fetch
+        """
         pass
 
 
@@ -29,18 +37,15 @@ class BaseIntegrator:
     # Base integrator class
     """
 
-    meta_config: dict
     source_config: dict
     dataframe_columns: list[DataFrameColumn]
     data_endpoints: dict[str, DataRetrievalFunction]
 
     def __init__(
         self,
-        config: dict,
         source_config: dict,
         dataframe_columns: list[DataFrameColumn],
     ):
-        self.meta_config = config
         self.source_config = source_config
         self.dataframe_columns = dataframe_columns
         self.data_endpoints = dict()

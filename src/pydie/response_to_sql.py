@@ -1,4 +1,3 @@
-import pandas as pd
 from dateutil import parser
 from datetime import datetime
 from dataclasses import dataclass
@@ -26,7 +25,7 @@ def parse_value_to_sql(
     is_str = openapi_type == "string"
     if is_primitive_array or is_str:
         return f"N'{str(value)}'"
-    has_date_format = pattern is not None and "date" in format
+    has_date_format = (pattern is not None) and ("date" in format)
     if has_date_format:
         return datetime.strptime(value, pattern)
     is_datetime = openapi_type == "date-time"

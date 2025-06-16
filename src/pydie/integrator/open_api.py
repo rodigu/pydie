@@ -1,67 +1,75 @@
-from pydie.integrator.base import BaseIntegrator
-from typing import TypedDict, NotRequired
+from pydie.integrator.base import (
+    BaseIntegrator,
+    DataRetrievalFunction,
+    LastIntegrationMeta,
+)
+from pydie.integrator.open_api_config import OpenAPISpecification, OpenAPIConnectionMeta
+import pandas as pd
+from requests import get, put, post, delete, Response
 
 
-class OAPIConfig(TypedDict):
-    pass
+class RequestFunction(DataRetrievalFunction):
+    def __call__(
+        self,
+        connection_meta: OpenAPIConnectionMeta,
+        last_integration: LastIntegrationMeta,
+    ) -> pd.DataFrame:
+        raise NotImplementedError("RequestFunction.__call__ not implemented.")
 
 
-class Described(TypedDict):
-    description: NotRequired[str]
-
-
-class Info(TypedDict, Described):
-    title: str
-    version: str
-
-
-class Server(TypedDict, Described):
-    url: str
-    version: str
-
-
-class Operation(TypedDict, Described):
-    tags: list[str]
-    summary: str
-
-
-class Path(TypedDict, Described):
-    summary: NotRequired[str]
-    get: NotRequired[Operation]
-    post: NotRequired[Operation]
-    put: NotRequired[Operation]
-    patch: NotRequired[Operation]
-    delete: NotRequired[Operation]
-    head: NotRequired[Operation]
-    options: NotRequired[Operation]
-    trace: NotRequired[Operation]
-
-
-class Tag(TypedDict, Described):
-    name: str
-
-
-class SecurityScheme(TypedDict):
-    type: str
-    scheme: str
-
-
-class Components(TypedDict):
-    securitySchemes: dict[str, SecurityScheme]
-
-
-class OpenAPISpecification(TypedDict):
+class GenericGET:
     """
-    # OpenAPI source specification
+    # Generic GET request
     """
 
-    openapi: str
+    def __call__(self, url: str, headers=dict(), parameters=None) -> Response:
+        if "User-Agent" not in headers:
+            headers.update(
+                {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0"
+                }
+            )
+        return get(url=url, headers=headers, params=parameters)
 
-    info: Info
-    servers: list[Server]
-    components: Components
-    tags: list[Tag]
-    paths: dict[str, Path]
+
+class GenericMOD:
+    def __call__(
+        self, func: callable, url: str, headers=dict(), json: dict | list = None
+    ) -> Response:
+        if "User-Agent" not in headers:
+            headers.update(
+                {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0"
+                }
+            )
+        return func(url=url, headers=headers, json=json)
+
+
+class GenericPUT(GenericMOD):
+    """
+    # Generic PUT request
+    """
+
+    def __call__(self, url: str, headers=dict(), json: dict | list = None) -> Response:
+        super().__call__(put, url, headers, json)
+
+
+class GenericDELETE(GenericMOD):
+    """
+    # Generic DELETE request
+    """
+
+    def __call__(self, url: str, headers=dict(), json: dict | list = None) -> Response:
+        super().__call__(delete, url, headers, json)
+
+
+class GenericPOST(GenericMOD):
+    """
+    # Generic POST request
+    """
+
+    def __call__(self, url: str, headers=dict(), json: dict | list = None) -> Response:
+        super().__call__(post, url, headers, json)
 
 
 class OpenAPI(BaseIntegrator):
@@ -70,6 +78,7 @@ class OpenAPI(BaseIntegrator):
     """
 
     source_config: OpenAPISpecification
+    data_endpoints: dict[str, RequestFunction]
 
     def _initialize(self):
         pass
