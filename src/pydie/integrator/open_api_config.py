@@ -60,3 +60,34 @@ class OpenAPISpecification(TypedDict):
     components: Components
     tags: list[Tag]
     paths: dict[str, Path]
+
+
+class IntegrationMetaProperties(TypedDict):
+    dt_inclusion: str
+    dt_update: str
+    id: str
+
+
+class EndpointMeta(TypedDict):
+    """
+    # Data integration metadata
+
+    ## Subtables
+
+    The `sub_tables` property specifies any response properties that should become subtables
+
+    ## Omissions
+
+    Any property named on `omit` won't be included in the integration.
+    All subtables also won't be included.
+    """
+
+    request_function: str
+    target_table: str
+    omit: list[str]
+    sub_tables: dict[str, "EndpointMeta"]
+    integration_properties: IntegrationMetaProperties
+
+
+class OpenAPIIntegrationMeta(TypedDict):
+    endpoints: list[EndpointMeta]

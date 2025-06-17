@@ -3,7 +3,11 @@ from pydie.integrator.base import (
     DataRetrievalFunction,
     LastIntegrationMeta,
 )
-from pydie.integrator.open_api_config import OpenAPISpecification, OpenAPIConnectionMeta
+from pydie.integrator.open_api_config import (
+    OpenAPISpecification,
+    OpenAPIConnectionMeta,
+    OpenAPIIntegrationMeta,
+)
 import pandas as pd
 from requests import get, put, post, delete, Response
 
@@ -13,7 +17,7 @@ class RequestFunction(DataRetrievalFunction):
         self,
         connection_meta: OpenAPIConnectionMeta,
         last_integration: LastIntegrationMeta,
-    ) -> pd.DataFrame:
+    ) -> dict[str, pd.DataFrame]:
         raise NotImplementedError("RequestFunction.__call__ not implemented.")
 
 
@@ -75,9 +79,37 @@ class GenericPOST(GenericMOD):
 class OpenAPI(BaseIntegrator):
     """
     # Integrator for REST APIs with the OpenAPI specs implementation
+
+    ## OpenAPI specification
+
+    The dictionary property `source_config` expects an OpenAPI specs dictionary extracted from a YAML or a JSON.
+
+    The OpenAPI specs should have been edited using the following extension to the 3.0 specification.
+
+    ## OpenAPI 3.0 Extension
+
+    The following extensions to the OpenAPI specification exist to support the data integration into a SQL database.
+
+    ### Numbers
+
+    The `format` hint should have a SQL-valid type.
+
+    ### Strings
+
+    Strings without a `maxLength` will be converted into `VARCHAR(MAX)`.
+
+    ### Datetime strings
+
+    Datetimes that do not follow the suggested OAPI 3.0 [RFC 3339, section 5.6](https://datatracker.ietf.org/doc/html/rfc3339#section-5.6)
+    date formatting, should have a `pattern` property specified with [Python's date format codes](https://docs.python.org/3/library/datetime.html#format-codes).
+
+    ### Objects and sub-tables
+
+    Objects will be converted to sub-tables.
     """
 
     source_config: OpenAPISpecification
+    integration_meta: OpenAPIIntegrationMeta
     data_endpoints: dict[str, RequestFunction]
 
     def _initialize(self):
