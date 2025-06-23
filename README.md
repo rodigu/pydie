@@ -1,6 +1,7 @@
 # pydie: Python Database Integration Engine
 
 Framework to integrate data from various sources into SQL databases using opinionated, standarized interfaces.
+Instead of implementing procedures, create specification files that are fed into the engine to integrate data from one source to another.
 
 Built to work with Apache Airflow.
 
@@ -35,6 +36,10 @@ They do have a unified in/out interface so that they may better fit into a unifi
 
 Converters take from Receivers using an interface.
 They then convert the data into the Integrator interface.
+
+### Sub-tables
+
+Sub tables are generated when the value for a key in an API response is always a list of consistent objects.
 
 ## Integrator
 

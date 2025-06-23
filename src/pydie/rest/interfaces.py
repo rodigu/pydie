@@ -1,4 +1,4 @@
-import base
+import pydie.interfaces as interfaces
 from typing import Optional, TypedDict, Protocol
 from requests import Response
 
@@ -8,10 +8,11 @@ type Path = str
 type PathParameterName = str
 # API response data key
 type ResponsePropertyKey = list[str | int]
+type ResponsePropertyValue = str
 # Object key from a list of consistent objects.
 # The values for this key are used as parameters for an API Path string
 type ParametrizableKey = str
-type ParametrizableValue = str
+type ParametrizableValue = ResponsePropertyValue
 
 
 class RequestParameters(TypedDict): ...
@@ -26,6 +27,9 @@ class RequestFunctionParameters(TypedDict):
     json: Optional[RequestJSON]
 
 
+class ResponseData(TypedDict): ...
+
+
 class RequestFunction(Protocol):
     """Simplifind `requests` library function type
     (get, put, post, delete).
@@ -38,9 +42,6 @@ class RequestFunction(Protocol):
         parameters: Optional[dict] = None,
         json: Optional[dict] = None,
     ) -> Response: ...
-
-
-class ResponseData(TypedDict): ...
 
 
 class ParametrizableResponseProperty(TypedDict):
@@ -92,22 +93,40 @@ class ParametrizableResponseProperty(TypedDict):
     parametrizable_key: ParametrizableKey
 
 
-class FetcherConfiguration(base.FetcherConfiguration):
+type ResponsePropertiesToParametrize = dict[Path, ParametrizableResponseProperty]
+
+
+class FetcherConfiguration(interfaces.FetcherConfiguration):
+    """
+    ## top_level_data_address
+
+    When response data is not found at the top level of the response (e.g. it comes with metadata on the request),
+    `top_level_data_address` contains the address for the actual response data.
+    """
+
     path: Path
     request_function_parameters: RequestFunctionParameters
     request_function: RequestFunction
-    response_properties_to_parametrize: Optional[
-        dict[Path, ParametrizableResponseProperty]
-    ]
+    response_properties_to_parametrize: Optional[ResponsePropertiesToParametrize]
     parametrizable_values: Optional[dict[PathParameterName, ParametrizableValue]]
     dependent_requests: Optional[dict[Path, "FetcherConfiguration"]]
+    destination_table: interfaces.SQLTableName
+    top_level_data_address: Optional[ResponsePropertyKey]
 
 
-class ConverterConfiguration(base.ConverterConfiguration):
+class ConverterConfiguration(interfaces.ConverterConfiguration):
     dependent_requests: Optional[dict[Path, FetcherConfiguration]]
-    response_data: dict[base.SQLTableName, ResponseData]
+    data: ResponseData
 
 
-class EngineConfiguration(base.EngineConfiguration):
+class SubTable(TypedDict):
+    path: Path
+    subtable_address: ResponsePropertyKey
+    destination_table: interfaces.SQLTableName
+    id_property: ResponsePropertyKey
+
+
+class EngineConfiguration(interfaces.EngineConfiguration):
     base_url: str
     default_headers: dict
+    sub_tables: dict[Path, dict[ResponsePropertyKey]]
