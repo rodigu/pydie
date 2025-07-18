@@ -1,33 +1,33 @@
 import pydie.interfaces as interfaces
 from typing import Optional, TypedDict, Protocol
-from requests import Response
-
-# API path string (e.g. "/api/users/{userID}/items")
-type Path = str
-# API path parameter string (e.g. "userID")
-type PathParameterName = str
-# API response data key
-type ResponsePropertyKey = list[str | int]
-type ResponsePropertyValue = str
-# Object key from a list of consistent objects.
-# The values for this key are used as parameters for an API Path string
-type ParametrizableKey = str
-type ParametrizableValue = ResponsePropertyValue
+from requests import Response, get, put, post, delete
 
 
-class RequestParameters(TypedDict): ...
+class APIPath:
+    type ParameterKey = str
+    type ParameterValue = str
 
 
-class RequestJSON(TypedDict): ...
+class RequestParameters(TypedDict):
+    """Base request parameters class.
+    Should be instanced into the particular REST API implementation to specify the necessary parameters.
+    """
+
+
+class RequestJSON(TypedDict):
+    """Base request JSON payload class."""
 
 
 class RequestFunctionParameters(TypedDict):
+    """Parameters for one of Python's `request` functions (GET, PUT, etc) parameters."""
+
     headers: dict
     parameters: Optional[RequestParameters]
     json: Optional[RequestJSON]
 
 
-class ResponseData(TypedDict): ...
+class ResponseData(TypedDict):
+    """Base response data JSON."""
 
 
 class RequestFunction(Protocol):
@@ -44,89 +44,31 @@ class RequestFunction(Protocol):
     ) -> Response: ...
 
 
-class ParametrizableResponseProperty(TypedDict):
-    """
-    # Parametrizable property key
-
-    Properties in a response that serve as parameters to other requests.
-
-    ## Path parameter name
-
-    The identifier for the parameter in a path.
-    E.g. `userID` in `/api/users/{userID}`
-
-    ## Parametrizable property address
-
-    Adress with to the property containing the parametrizable property.
-    The address it a `ResponsePropertyKey`, which is a list of dictionary keys
-    which allow access to a response property, even when they are layered.
-
-    The value of said property should be a list of consistent objects.
-
-    ## Parametrizable key
-
-    Key that can be turned into another request's parameter.
-
-    ## Example
-
-    For the path `/api/users/all`, a sample response is:
-
-    ```json
-    {"data": {"users": [{"id": 1}, {"id": 2}]}, "requestDate": "date", "responseTime": 10}
-    ```
-
-    The property `response['data']['users']` has parametrizable keys (`id`) in the objects in its list.
-
-    A `ParametrizableResponseProperty` would look like:
-
-    ```py
-    sample: ParametrizableResponseProperty = {
-        'parametrizable_key': 'id',
-        'parametrizable_proterty_address': ['data','users'],
-        'path_parameter_name': 'userID'
-    }
-    ```
-    """
-
-    path_parameter_name: PathParameterName
-    parametrizable_proterty_address: ResponsePropertyKey
-    parametrizable_key: ParametrizableKey
+REQUEST_FUNCTIONS = {"get": get, "put": put, "post": post, "delete": delete}
 
 
-type ResponsePropertiesToParametrize = dict[Path, ParametrizableResponseProperty]
+class ParametrizableProperty(TypedDict):
+    parameter_key: APIPath.ParameterKey
+    parameter_value: Optional[APIPath.ParameterValue]
+    address: list[int]
+
+
+type ParametrizablePropertyMapping = dict[APIPath.ParameterKey, ParametrizableProperty]
 
 
 class FetcherConfiguration(interfaces.FetcherConfiguration):
     """
-    ## top_level_data_address
-
-    When response data is not found at the top level of the response (e.g. it comes with metadata on the request),
-    `top_level_data_address` contains the address for the actual response data.
+    The `id` property (`FetcherID` type) should be a valid api endpoint.
     """
 
-    path: Path
     request_function_parameters: RequestFunctionParameters
-    request_function: RequestFunction
-    response_properties_to_parametrize: Optional[ResponsePropertiesToParametrize]
-    parametrizable_values: Optional[dict[PathParameterName, ParametrizableValue]]
-    dependent_requests: Optional[dict[Path, "FetcherConfiguration"]]
-    destination_table: interfaces.SQLTableName
-    top_level_data_address: Optional[ResponsePropertyKey]
-
-
-class ConverterConfiguration(interfaces.ConverterConfiguration):
-    dependent_requests: Optional[dict[Path, FetcherConfiguration]]
-    data: ResponseData
-
-
-class SubTable(TypedDict):
-    path: Path
-    subtable_address: ResponsePropertyKey
-    destination_table: interfaces.SQLTableName
-    id_property: ResponsePropertyKey
+    request_function_name: str
+    response_parametrizable_properties: Optional[ParametrizablePropertyMapping]
+    api_path_parameter_values: Optional[ParametrizablePropertyMapping]
+    dependent_requests: Optional[
+        dict[interfaces.FetcherID, ParametrizablePropertyMapping]
+    ]
 
 
 class EngineConfiguration(interfaces.EngineConfiguration):
     base_url: str
-    default_headers: dict
-    sub_tables: dict[Path, dict[ResponsePropertyKey]]
