@@ -1,7 +1,27 @@
-from typing import TypedDict, Protocol
-from pandas import DataFrame
+from typing import TypedDict, Protocol, Optional
+from polars import DataFrame
+
 
 type SQLTableName = str
+
+
+type FetcherID = str
+type SourceID = str
+
+
+class FetcherConfiguration(TypedDict):
+    id: FetcherID
+    source_id: SourceID
+    target_table: SQLTableName
+
+
+type ConverterID = str
+
+
+class ConverterConfiguration(TypedDict):
+    id: ConverterID
+    target_table: SQLTableName
+    data: dict | DataFrame
 
 
 class EngineConfiguration(TypedDict):
@@ -11,43 +31,24 @@ class EngineConfiguration(TypedDict):
     """
 
 
-type FetcherID = str
-
-
-class FetcherConfiguration(TypedDict):
-    """# Configuration specs for data fetching functions"""
-
-    target_table: SQLTableName
-
-
-type ConverterID = str
-
-
-class ConverterConfiguration(TypedDict):
-    """# Configuration specs for data conversion functions"""
-
-    destination_table: str
-    data: dict | DataFrame
-
-
-type IntegratorID = str
-
-
-class IntegratorConfiguration(TypedDict):
-    """# Configuration specs for the SQL DB integrator"""
-
-    db_connection_string: str
-
-
-class Converter(Protocol):
-    def __call__(
-        self,
-        data: dict[FetcherID, ConverterConfiguration],
-        engine: EngineConfiguration,
-    ) -> list[IntegratorConfiguration]: ...
-
-
 class Fetcher(Protocol):
     def __call__(
-        self, connection: FetcherConfiguration, engine: EngineConfiguration
+        self,
+        configuration: FetcherConfiguration,
+        engine_configuration: EngineConfiguration,
     ) -> ConverterConfiguration: ...
+
+
+class FetcherFetcherAdaptor(Protocol):
+    def __call__(
+        self,
+        configuration: FetcherConfiguration,
+        engine_configuration: EngineConfiguration,
+    ) -> dict[FetcherID, FetcherConfiguration]: ...
+
+
+class Integrator(Protocol):
+    def __call__(
+        self,
+        engine_configuration: EngineConfiguration,
+    ): ...
