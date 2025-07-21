@@ -49,11 +49,17 @@ REQUEST_FUNCTIONS = {"get": get, "put": put, "post": post, "delete": delete}
 
 class ParametrizableProperty(TypedDict):
     parameter_key: APIPath.ParameterKey
-    parameter_value: Optional[APIPath.ParameterValue]
     address: list[int]
+    fetcher_id: interfaces.FetcherID
+
+
+class DependentRequest(TypedDict):
+    id: interfaces.FetcherID
+    parameters: dict[APIPath.ParameterKey, list[APIPath.ParameterValue]]
 
 
 type ParametrizablePropertyMapping = dict[APIPath.ParameterKey, ParametrizableProperty]
+type DependentRequestMapping = dict[interfaces.FetcherID, DependentRequest]
 
 
 class FetcherConfiguration(interfaces.FetcherConfiguration):
@@ -64,10 +70,10 @@ class FetcherConfiguration(interfaces.FetcherConfiguration):
     request_function_parameters: RequestFunctionParameters
     request_function_name: str
     response_parametrizable_properties: Optional[ParametrizablePropertyMapping]
-    api_path_parameter_values: Optional[ParametrizablePropertyMapping]
-    dependent_requests: Optional[
-        dict[interfaces.FetcherID, ParametrizablePropertyMapping]
-    ]
+
+
+class ConverterConfiguration(interfaces.FetcherConfiguration):
+    dependent_requests_parameters: Optional[DependentRequestMapping]
 
 
 class EngineConfiguration(interfaces.EngineConfiguration):
